@@ -48,9 +48,18 @@ class Robot : public frc::TimedRobot {
 
 //----------------------------------------------------
 // Utile pour des automatisations
-  void AutonomousInit() override { m_timer.Restart(); } // Initialisation du code pour un auto
+  void AutonomousInit() override { 
+    m_timer.Reset(); 
+    m_timer.Start();
+    state = 0;
 
-  void AutonomousPeriodic() override {} //  Une section de code pour lire les variables périodiquement
+  } // Initialisation du code pour un auto
+
+  void AutonomousPeriodic() override {
+    
+
+    //m_robotDrive.ArcadeDrive(pr_speed*speed, pr_rotation*turn);
+  } //  Une section de code pour lire les variables périodiquement
 //----------------------------------------------------
 
 //----------------------------------------------------
@@ -60,23 +69,61 @@ class Robot : public frc::TimedRobot {
   void TeleopPeriodic() override { //  Une section de code pour lire les variables périodiquement
     
     // Défnition des variables de controle
-    double pr_speed = 0.4;
-    double pr_rotation = 0.5;
-
-    // Definition du code de controle
-    double forward = m_controller.GetRightTriggerAxis();
-    double backward = m_controller.GetLeftTriggerAxis();
+    double pr_speed = 0;
+    double pr_rotation = 0;
+    double forward = 0;
+    double backward = 0;
+    
+    double speed = 0;
+    if (m_controller.GetYButton()){
+      if (joystick_mode == true) {
+        joystick_mode = false;
+      } else {
+        joystick_mode = true;
+      }
+    }
+    if (joystick_mode == true) {
+      speed = -1*m_controller.GetRightY();
+    } else {
+      forward = m_controller.GetRightTriggerAxis();
+      backward = m_controller.GetLeftTriggerAxis();
+      speed = forward - backward;
+    }
     double turn = m_controller.GetLeftX();
+    // Definition du code de controle
+    
 
-    // Définition de la variable speed pour avancer
-    double speed = forward - backward;
+    // Définition de la variable speed pour avancerspeed = forward - backward;
 
     // Definition du code  pour l'action du robot ( avancer, reculer et touner)
-    m_robotDrive.ArcadeDrive(pr_speed*speed, pr_rotation*turn);
+    
 
+    if (m_controller.GetAButton()){
+      Slow = true;
+    } else if (m_controller.GetBButton()){
+      Slow = false;
+    }
+    
+    if (Slow == true ){
+      pr_speed = -0.7;
+      pr_rotation = 0.6;
+    }
+    
+    if (Slow == false){
+      pr_speed = -0.9;
+      pr_rotation = 0.8;
+    }
+    m_robotDrive.ArcadeDrive(pr_speed*speed, pr_rotation*turn);
     //Définition du code pour faire la rotion de la caméra si la vitesse du robot deviens négative
-    if (speed < 0)
-    {
+    if (m_controller.GetPOV() == 270){
+      servo_cam.SetAngle(65.67);
+    } else if (m_controller.GetPOV() == 180){
+      servo_cam.SetAngle(137);
+    } else if (m_controller.GetPOV() == 90){
+      servo_cam.SetAngle(212.67);
+    } else if (m_controller.GetPOV() == 0) {
+      servo_cam.SetAngle(0);
+    } else if (speed > -0.1){
       servo_cam.SetAngle(0);
     } else {
       servo_cam.SetAngle(137);
@@ -100,9 +147,7 @@ class Robot : public frc::TimedRobot {
 
 //---------------------------------------------------
 // Partie du code pour les test
-  void TestInit() override {}
 
-  void TestPeriodic() override {}
 //---------------------------------------------------
 
 //--------------------------------------------------
@@ -127,6 +172,10 @@ class Robot : public frc::TimedRobot {
   //Définition Timer
   frc::Timer m_timer;
 
+  int state = 0;
+
+  bool Slow = false;
+  bool joystick_mode = false;
   //Définition de la fonction VisionThread qui est utiliser pour l'utilisation du camera sur le robot pour avoir un retour
   static void VisionThread() {
       
@@ -147,11 +196,11 @@ class Robot : public frc::TimedRobot {
 
       // Met en place le service de renvois de video au dashboard avec un rectangle dessiner
       cs::CvSource outputStream =
-          frc::CameraServer::PutVideo("Rectangle", 640, 480);
+          frc::CameraServer::PutVideo("Gray  Video", 1080, 720);
 
       // Défini un claque statique pour un rectangle
       cv::Mat mat;
-
+      cv::Mat grayMats;
       while (true) {
         // si jamais il y a un probleme dans la capture de l'image
         // depuis la camera, renvoie un code d'erreur
@@ -164,13 +213,14 @@ class Robot : public frc::TimedRobot {
           continue;
 
         }
+        cv::cvtColor(mat, grayMats, cv::COLOR_BGR2GRAY);
+
 
         // Place un rectangle dans la vidéo
-        rectangle(mat, cv::Point(100, 100), cv::Point(400, 400),
-                  cv::Scalar(255, 255, 255), 5);
+        
 
         // Donne au dashboard une nouvelle image comme un nouveau calque
-        outputStream.PutFrame(mat);
+        outputStream.PutFrame(grayMats);
 
       }
     }
